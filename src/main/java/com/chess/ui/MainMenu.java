@@ -1,6 +1,8 @@
 package com.chess.ui;
 
 import com.chess.core.GameConfig;
+import com.chess.i18n.I18n;
+import com.chess.i18n.Lang;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -23,20 +25,24 @@ public class MainMenu {
     private static final String BTN_BG   = "#21262d";
     private static final String BTN_HOV  = "#30363d";
 
-    // Seçili süre config (closure içinde değiştirilebilmesi için dizi)
     private static final long[][] TIMER_OPTIONS = {
         {GameConfig.UNLIMITED,    0},          // Süresiz
         {1  * 60_000L, 1_000L},               // Bullet  1+1
         {5  * 60_000L, 3_000L},               // Blitz   5+3
         {10 * 60_000L, 5_000L},               // Rapid  10+5
     };
-    private static final String[] TIMER_LABELS = {
-        "∞  Süresiz", "⚡ Bullet  1+1", "🔥 Blitz  5+3", "🐢 Rapid  10+5"
-    };
 
     public static void show(Stage stage, Consumer<GameConfig> onConfig, Runnable onMultiplayer) {
-        // Seçili süre indeksi (closure için tek elemanlı dizi)
-        int[] selectedTimer = {0};
+        buildScene(stage, onConfig, onMultiplayer, 0);
+    }
+
+    // Dil değişince, seçili süre aralığını koruyarak tüm ekranı yeniden çizer.
+    private static void buildScene(Stage stage, Consumer<GameConfig> onConfig, Runnable onMultiplayer,
+                                    int initialTimerIdx) {
+        int[] selectedTimer = {initialTimerIdx};
+        String[] timerLabels = {
+            I18n.t("timer.unlimited_full"), I18n.t("timer.bullet"), I18n.t("timer.blitz"), I18n.t("timer.rapid")
+        };
 
         StackPane root = new StackPane();
         Rectangle bg = new Rectangle(760, 820);
@@ -54,18 +60,41 @@ public class MainMenu {
         logo.setFill(Color.web(GOLD));
         logo.setEffect(new DropShadow(20, Color.web(GOLD, 0.4)));
 
-        Text sub = new Text("Mod Seçin");
+        Text sub = new Text(I18n.t("menu.select_mode"));
         sub.setFont(Font.font("Georgia", FontPosture.ITALIC, 16));
         sub.setFill(Color.web("#8b949e"));
 
-        Region gap1 = new Region(); gap1.setPrefHeight(36);
+        // Dil seçici
+        Region gapLang = new Region(); gapLang.setPrefHeight(16);
+        Label langTitle = new Label(I18n.t("menu.language"));
+        langTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+        langTitle.setTextFill(Color.web("#8b949e"));
+
+        HBox langRow = new HBox(6);
+        langRow.setAlignment(Pos.CENTER);
+        Button[] langBtns = new Button[Lang.values().length];
+        for (Lang lang : Lang.values()) {
+            Button lb = new Button(lang.code());
+            lb.setFont(Font.font("Segoe UI", FontWeight.BOLD, 11));
+            lb.setPrefWidth(52);
+            lb.setPrefHeight(26);
+            langBtns[lang.ordinal()] = lb;
+            lb.setOnAction(e -> {
+                I18n.set(lang);
+                buildScene(stage, onConfig, onMultiplayer, selectedTimer[0]);
+            });
+            langRow.getChildren().add(lb);
+        }
+        styleLangButtons(langBtns);
+
+        Region gap1 = new Region(); gap1.setPrefHeight(28);
 
         // Mod butonları
-        Button btn2P     = makeButton("♟  2 Kişilik",       "Aynı bilgisayarda iki oyuncu");
-        Button btnEasy   = makeButton("🤖  Standart AI",    "Kolay — Yeni başlayanlar");
-        Button btnMedium = makeButton("⚙  Orta Zorluk AI", "Dengeli — Orta seviye");
-        Button btnExpert = makeButton("🏆  Uzman AI",        "En zor — Deneyimli oyuncular");
-        Button btnOnline = makeButton("🌐  Çevrimiçi",       "TCP üzerinden 2 oyuncu");
+        Button btn2P     = makeButton(I18n.t("menu.two_player.title"), I18n.t("menu.two_player.desc"));
+        Button btnEasy   = makeButton(I18n.t("menu.ai_easy.title"),    I18n.t("menu.ai_easy.desc"));
+        Button btnMedium = makeButton(I18n.t("menu.ai_medium.title"), I18n.t("menu.ai_medium.desc"));
+        Button btnExpert = makeButton(I18n.t("menu.ai_expert.title"), I18n.t("menu.ai_expert.desc"));
+        Button btnOnline = makeButton(I18n.t("menu.online.title"),    I18n.t("menu.online.desc"));
 
         btn2P.setOnAction(e -> onConfig.accept(makeConfig("TWO_PLAYER", selectedTimer[0])));
         btnEasy.setOnAction(e -> onConfig.accept(makeConfig("AI_EASY",   selectedTimer[0])));
@@ -78,18 +107,18 @@ public class MainMenu {
 
         // Süre seçim başlığı
         Region gap2 = new Region(); gap2.setPrefHeight(24);
-        Label timerTitle = new Label("⏱  Süre Kontrolü");
+        Label timerTitle = new Label(I18n.t("menu.timer_control"));
         timerTitle.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         timerTitle.setTextFill(Color.web("#8b949e"));
 
         // Süre toggle butonları
-        Button[] timerBtns = new Button[TIMER_LABELS.length];
+        Button[] timerBtns = new Button[timerLabels.length];
         HBox timerRow = new HBox(8);
         timerRow.setAlignment(Pos.CENTER);
 
-        for (int i = 0; i < TIMER_LABELS.length; i++) {
+        for (int i = 0; i < timerLabels.length; i++) {
             final int idx = i;
-            Button tb = new Button(TIMER_LABELS[i]);
+            Button tb = new Button(timerLabels[i]);
             tb.setFont(Font.font("Segoe UI", 12));
             tb.setPrefWidth(148);
             tb.setPrefHeight(36);
@@ -101,21 +130,21 @@ public class MainMenu {
             });
             timerRow.getChildren().add(tb);
         }
-        updateTimerButtons(timerBtns, 0); // başlangıç: Süresiz seçili
+        updateTimerButtons(timerBtns, selectedTimer[0]);
 
         // Çıkış butonu
         Region gap3 = new Region(); gap3.setPrefHeight(20);
-        Button btnExit = makeExitButton("✕  Çıkış");
+        Button btnExit = makeExitButton(I18n.t("menu.exit"));
         btnExit.setOnAction(e -> System.exit(0));
 
         // Versiyon
         Region gap4 = new Region(); gap4.setPrefHeight(20);
-        Label version = new Label("v3.0  •  Java + JavaFX");
+        Label version = new Label(I18n.t("menu.version"));
         version.setTextFill(Color.web("#484f58"));
         version.setFont(Font.font("Arial", 12));
 
         content.getChildren().addAll(
-            logo, sub, gap1,
+            logo, sub, gapLang, langTitle, langRow, gap1,
             modeBtns, gap2,
             timerTitle, timerRow,
             gap3, btnExit, gap4, version
@@ -143,6 +172,20 @@ public class MainMenu {
                 "-fx-background-color: " + (sel ? "#1f3a1f" : "#21262d") + ";" +
                 "-fx-border-color: "     + (sel ? "#3fb950" : "#30363d") + ";" +
                 "-fx-text-fill: "        + (sel ? "#3fb950" : "#8b949e") + ";" +
+                "-fx-border-width: 1.5; -fx-border-radius: 6;" +
+                "-fx-background-radius: 6; -fx-cursor: hand;"
+            );
+        }
+    }
+
+    private static void styleLangButtons(Button[] btns) {
+        for (Lang lang : Lang.values()) {
+            boolean sel = lang == I18n.current();
+            Button b = btns[lang.ordinal()];
+            b.setStyle(
+                "-fx-background-color: " + (sel ? "#1a2a4a" : "#21262d") + ";" +
+                "-fx-border-color: "     + (sel ? "#58a6ff" : "#30363d") + ";" +
+                "-fx-text-fill: "        + (sel ? "#58a6ff" : "#8b949e") + ";" +
                 "-fx-border-width: 1.5; -fx-border-radius: 6;" +
                 "-fx-background-radius: 6; -fx-cursor: hand;"
             );

@@ -1,5 +1,7 @@
 package com.chess.game;
 
+import com.chess.i18n.I18n;
+
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -26,9 +28,9 @@ public class GameHistory {
     }
 
     public void record(String color, String pieceType, String from, String to, boolean capture) {
-        String side = color.equals("WHITE") ? "BEYAZ" : "SİYAH";
+        String side = color.equals("WHITE") ? I18n.t("color.white") : I18n.t("color.black");
         String entry = String.format("  %3d. [%s] %s %s -> %s%s",
-                moveNumber++, side, pieceType, from, to, capture ? " (yakalama)" : "");
+                moveNumber++, side, pieceType, from, to, capture ? I18n.t("history.capture") : "");
         entries.add(entry);
     }
 
@@ -44,14 +46,14 @@ public class GameHistory {
         String path = HISTORY_DIR.resolve(filename).toString();
         try (PrintWriter pw = new PrintWriter(new FileWriter(path, false))) {
             pw.println("=========================================");
-            pw.println("      RsL Chess - Oyun Gecmisi          ");
+            pw.println("      " + I18n.t("history.title"));
             pw.println("=========================================");
-            pw.println("Tarih : " + startTime);
-            pw.println("Mod   : " + gameMode);
+            pw.println(I18n.t("history.date") + " : " + startTime);
+            pw.println(I18n.t("history.mode") + " : " + gameMode);
             pw.println("-----------------------------------------");
             entries.forEach(pw::println);
             pw.println("-----------------------------------------");
-            pw.println("Sonuc : " + result);
+            pw.println(I18n.t("history.result") + " : " + result);
             pw.println("=========================================");
         } catch (IOException e) {
             System.err.println("Gecmis kaydedilemedi: " + e.getMessage());

@@ -3,6 +3,7 @@ package com.chess.ui;
 import com.chess.core.GameConfig;
 import com.chess.core.GameTimer;
 import com.chess.game.GameController;
+import com.chess.i18n.I18n;
 import com.chess.network.NetworkManager;
 import com.chess.sound.SoundEngine;
 import com.chess.theme.BoardTheme;
@@ -51,7 +52,7 @@ public class GameScreen {
             soundBtn.setText(on ? "🔊" : "🔇");
         });
 
-        Button menuBtn = smallBtn("← Menü", "#8b949e");
+        Button menuBtn = smallBtn(I18n.t("game.back_to_menu"), "#8b949e");
         menuBtn.setOnAction(e -> {
             if (controller.getTimer() != null) controller.getTimer().stop();
             if (nm != null) nm.disconnect();
@@ -69,23 +70,23 @@ public class GameScreen {
         HBox themeRow = buildThemeRow(boardUI);
 
         // Siyah zamanlayıcı
-        Label blackTimeLabel = timerLabel("SİYAH ♟", config.hasTimer() ? "--:--" : "∞");
+        Label blackTimeLabel = timerLabel(I18n.t("game.black_label"), config.hasTimer() ? "--:--" : "∞");
         VBox blackBox = timerBox(blackTimeLabel, "#1c1c2e", "#444466");
 
         // Hamle listesi
         ListView<String> moveList = buildMoveList();
         VBox.setVgrow(moveList, Priority.ALWAYS);
-        Label moveHeader = sectionHeader("  HAMLELER");
+        Label moveHeader = sectionHeader(I18n.t("game.moves_header"));
         VBox moveSection = new VBox(0, moveHeader, moveList);
         VBox.setVgrow(moveSection, Priority.ALWAYS);
 
         // Beyaz zamanlayıcı
-        Label whiteTimeLabel = timerLabel("BEYAZ ♙", config.hasTimer() ? "--:--" : "∞");
+        Label whiteTimeLabel = timerLabel(I18n.t("game.white_label"), config.hasTimer() ? "--:--" : "∞");
         VBox whiteBox = timerBox(whiteTimeLabel, "#1e2a1e", "#336633");
 
         // Durum çubuğu
         Circle turnDot  = new Circle(6);
-        Label turnLabel = new Label("Sıra: BEYAZ");
+        Label turnLabel = new Label(I18n.t("game.turn_prefix") + I18n.t("color.white"));
         turnLabel.setFont(Font.font("Segoe UI", FontWeight.BOLD, 13));
         turnLabel.setTextFill(Color.web("#e6edf3"));
         Label aiStatus = new Label("");
@@ -132,17 +133,18 @@ public class GameScreen {
             boolean isWhite = "WHITE".equals(turn);
             boolean inCheck = controller.isCurrentPlayerInCheck();
 
+            String colorName = isWhite ? I18n.t("color.white") : I18n.t("color.black");
             turnDot.setFill(isWhite ? Color.web("#58a6ff") : Color.web("#f85149"));
             if (inCheck) {
-                turnLabel.setText("Sıra: " + (isWhite ? "BEYAZ" : "SİYAH") + "  ŞAH!");
+                turnLabel.setText(I18n.t("game.turn_prefix") + colorName + I18n.t("game.check_suffix"));
                 turnLabel.setTextFill(Color.web("#f85149"));
             } else {
-                turnLabel.setText("Sıra: " + (isWhite ? "BEYAZ" : "SİYAH"));
+                turnLabel.setText(I18n.t("game.turn_prefix") + colorName);
                 turnLabel.setTextFill(Color.web("#e6edf3"));
             }
 
-            if (controller.isAITurn())        aiStatus.setText("AI düşünüyor...");
-            else if (controller.isRemoteTurn()) aiStatus.setText("Rakip bekliyor...");
+            if (controller.isAITurn())        aiStatus.setText(I18n.t("game.ai_thinking"));
+            else if (controller.isRemoteTurn()) aiStatus.setText(I18n.t("game.opponent_waiting"));
             else                               aiStatus.setText("");
 
             if (!config.hasTimer()) {
@@ -178,9 +180,9 @@ public class GameScreen {
         controller.setOnGameOver(result -> Platform.runLater(() -> {
             updateStatus.run();
             Alert alert = new Alert(AlertType.INFORMATION);
-            alert.setTitle("Oyun Bitti");
+            alert.setTitle(I18n.t("game.over_title"));
             alert.setHeaderText(result);
-            alert.setContentText("Oyun geçmişi kaydedildi.\nYeni oyun için menüye dönün.");
+            alert.setContentText(I18n.t("game.over_content"));
             alert.getDialogPane().setStyle("-fx-background-color:#161b22;-fx-border-color:#d4af37;");
             alert.showAndWait();
             if (controller.getTimer() != null) controller.getTimer().stop();
@@ -192,7 +194,10 @@ public class GameScreen {
     // ── Tema satırı ─────────────────────────────────────────────────────────
 
     private static HBox buildThemeRow(ChessBoardUI boardUI) {
-        String[] abbrev = {"Klas", "Mini", "Fan", "Cam", "Füt"};
+        String[] abbrev = {
+            I18n.t("theme.abbr.classic"), I18n.t("theme.abbr.minimalist"), I18n.t("theme.abbr.fantasy"),
+            I18n.t("theme.abbr.glass"), I18n.t("theme.abbr.futuristic")
+        };
         HBox row = new HBox(4);
         row.setAlignment(Pos.CENTER);
         row.setPadding(new Insets(5, 6, 5, 6));
@@ -229,7 +234,7 @@ public class GameScreen {
     // ── Chat bölümü (sadece ağ modu) ─────────────────────────────────────────
 
     private static VBox buildChatSection(NetworkManager nm) {
-        Label header = sectionHeader("  SOHBET");
+        Label header = sectionHeader(I18n.t("game.chat_header"));
 
         ListView<String> chatList = new ListView<>();
         chatList.setPrefHeight(130);
@@ -251,7 +256,7 @@ public class GameScreen {
         nm.setOnChatReceived(msg -> chatList.getItems().add(msg));
 
         TextField chatInput = new TextField();
-        chatInput.setPromptText("Mesaj yaz...");
+        chatInput.setPromptText(I18n.t("game.chat_prompt"));
         chatInput.setStyle("-fx-background-color:#21262d;-fx-text-fill:#e6edf3;" +
                            "-fx-border-color:#30363d;-fx-border-radius:4;-fx-background-radius:4;" +
                            "-fx-padding:4 8 4 8;-fx-font-size:12;");

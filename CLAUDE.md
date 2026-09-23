@@ -19,6 +19,7 @@ javac --module-path $MP --add-modules javafx.controls,javafx.graphics -d bin `
   src\main\java\com\chess\pieces\*.java `
   src\main\java\com\chess\game\*.java `
   src\main\java\com\chess\ai\*.java `
+  src\main\java\com\chess\i18n\*.java `
   src\main\java\com\chess\sound\*.java `
   src\main\java\com\chess\theme\*.java `
   src\main\java\com\chess\network\*.java `
@@ -50,6 +51,7 @@ Output goes to `bin/`. There are no tests.
 | `com.chess.pieces` | Abstract `Piece` (tracks `moved` for castling rights) + 6 concrete types |
 | `com.chess.game` | `GameController` (game flow, legal-move filtering, AI trigger), `GameHistory` (writes `game_history/*.txt`) |
 | `com.chess.ai` | `AIPlayer` interface, `ChessAI` (negamax + alpha-beta pruning, depth by difficulty) |
+| `com.chess.i18n` | `Lang` (TR/EN/RU), `I18n` (static translation table + current-language singleton) |
 | `com.chess.network` | `NetworkManager` — plain TCP, pipe-delimited line protocol for 2-player online play |
 | `com.chess.sound` | `SoundEngine` — procedurally synthesized SFX (no audio assets) |
 | `com.chess.theme` | `BoardTheme` (record), `Themes` (5 presets), `ThemeManager` (current selection, singleton) |
@@ -88,6 +90,8 @@ Main.start()
 **Thread safety for AI:** `GameController.triggerAIMove()` runs AI on a daemon thread. It calls `board.copy()` before handing off to the thread, so the AI never touches the live board. Results are posted back via `uiExecutor` (set to `Platform::runLater` by `ChessBoardUI`). `GameController` has no JavaFX dependency — the `Consumer<Runnable> uiExecutor` field decouples it. `GameTimer`'s countdown fields are `volatile` since they're written on its own daemon thread and read from the JavaFX thread via `onTick`.
 
 **`ChessBoardUI` piece layer:** piece glyphs are **not** children of the 64 grid `StackPane`s. They live in a separate always-on-top `pieceLayer` `Pane`, tracked by object identity in `Map<Piece, StackPane> pieceNodes` / `Map<Piece, Coordinate> pieceCoords`. `refreshPieces()` diffs the current `Board` against that state each time it's called (after every move): a piece whose reference is still on the board but at a new square slides there (`TranslateTransition`); a piece whose reference disappeared (captured, or replaced by promotion) fades out; a brand-new reference (initial setup, promotion result, or a full rebuild after a theme switch) pops in. This depends on `Board.setPiece()` preserving `Piece` object identity across an ordinary move — only promotion and capture actually discard/replace a reference. The 64 grid cells still separately hold background fill, hover highlight, selection overlay, move-hint markers, and the check ring — none of that changed.
+
+**Localization (`I18n`):** every user-facing string is a lookup, `I18n.t("some.key")`, against a hardcoded `Map<String, String[]>` (index = `Lang.ordinal()`) — no `.properties`/`ResourceBundle` files, so the `javac` wildcard build never needs to copy non-`.java` resources. There is no reactive binding: screens are rebuilt from scratch on every navigation anyway (`MainMenu.show()`, `GameScreen.show()`, …), so a language change just needs to trigger a rebuild of the *current* screen to take effect — see `MainMenu`'s language row, which calls `I18n.set(lang)` then re-invokes its own scene-building method. `GameConfig.modeLabel()/timerLabel()`, `GameController`'s end-of-game messages, and `GameHistory`'s saved `.txt` output all go through `I18n` too, so switching language before/at game start localizes the whole run, including the saved log file. New user-facing text needs a key added to `I18n`'s static initializer for **all three languages** — `I18n.t()` silently falls back to returning the raw key if a language slot is missing, which is easy to miss visually, so grep the key after adding it.
 
 ### AI Depths
 

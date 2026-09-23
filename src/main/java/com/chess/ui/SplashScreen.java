@@ -1,5 +1,6 @@
 package com.chess.ui;
 
+import com.chess.i18n.I18n;
 import javafx.animation.*;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -49,7 +50,7 @@ public class SplashScreen {
         titleText.setEffect(glow);
         titleText.setOpacity(0);
 
-        Text sub = new Text("Java Satranç Motoru");
+        Text sub = new Text(I18n.t("splash.subtitle"));
         sub.setFont(Font.font("Georgia", FontPosture.ITALIC, 18));
         sub.setFill(Color.web("#8b949e"));
         sub.setOpacity(0);

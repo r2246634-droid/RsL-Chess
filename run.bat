@@ -7,6 +7,7 @@ javac %JAVA_OPTS% -d bin ^
   src\main\java\com\chess\pieces\*.java ^
   src\main\java\com\chess\game\*.java ^
   src\main\java\com\chess\ai\*.java ^
+  src\main\java\com\chess\i18n\*.java ^
   src\main\java\com\chess\sound\*.java ^
   src\main\java\com\chess\theme\*.java ^
   src\main\java\com\chess\network\*.java ^

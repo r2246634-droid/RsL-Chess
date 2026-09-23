@@ -7,6 +7,7 @@ JavaFX ile yazılmış, yapay zeka destekli bir satranç oyunu. Tek bilgisayarda
 ## Özellikler
 
 - Tam kurallı satranç: rok (kısa/uzun), geçerken alma (en passant), piyon terfisi (Vezir), şah/mat/pat tespiti
+- 3 dil desteği: Türkçe, İngilizce, Rusça (ana menüden anında değiştirilebilir)
 - 3 zorluk seviyesinde yapay zeka (negamax + alpha-beta budama)
 - Yerel ağ üzerinden 2 oyunculu çevrimiçi mod (sohbet dahil)
 - Süreli oyun modları (Bullet, Blitz, Rapid) ve süresiz mod
@@ -39,6 +40,7 @@ Ayrıntılı mimari notları için [`CLAUDE.md`](CLAUDE.md) dosyasına bakın.
 | `com.chess.pieces` | Taş sınıfları |
 | `com.chess.game` | Oyun akışı, hamle geçmişi |
 | `com.chess.ai` | Yapay zeka (negamax) |
+| `com.chess.i18n` | Dil desteği (TR/EN/RU) |
 | `com.chess.network` | TCP tabanlı çevrimiçi oyun |
 | `com.chess.sound` | Sentezlenmiş ses efektleri |
 | `com.chess.theme` | Görsel temalar |

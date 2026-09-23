@@ -3,6 +3,7 @@ package com.chess.game;
 import com.chess.ai.AIPlayer;
 import com.chess.ai.ChessAI;
 import com.chess.core.*;
+import com.chess.i18n.I18n;
 import com.chess.network.NetworkManager;
 import com.chess.pieces.*;
 
@@ -83,7 +84,7 @@ public class GameController {
         });
         nm.setOnDisconnected(() -> {
             if (!gameOver && onGameOver != null)
-                onGameOver.accept("Bağlantı kesildi");
+                onGameOver.accept(I18n.t("result.disconnected"));
         });
     }
 
@@ -92,10 +93,12 @@ public class GameController {
     public void startTimer() {
         if (timer == null) return;
         timer.setOnWhiteTimeout(() -> uiExecutor.accept(() -> {
-            if (!gameOver) endGame("SİYAH kazandı! — Süre bitti (Beyaz)");
+            if (!gameOver) endGame(I18n.win(I18n.t("color.black"),
+                    I18n.t("result.timeout") + " (" + I18n.t("color.white") + ")"));
         }));
         timer.setOnBlackTimeout(() -> uiExecutor.accept(() -> {
-            if (!gameOver) endGame("BEYAZ kazandı! — Süre bitti (Siyah)");
+            if (!gameOver) endGame(I18n.win(I18n.t("color.white"),
+                    I18n.t("result.timeout") + " (" + I18n.t("color.black") + ")"));
         }));
         timer.start(true);
     }
@@ -181,12 +184,13 @@ public class GameController {
         if (isInCheck(board, currentTurn)) {
             if (getAllLegalMovesForColor(currentTurn).isEmpty()) {
                 sound("checkmate");
-                endGame(("WHITE".equals(currentTurn) ? "SİYAH" : "BEYAZ") + " kazandı! — ŞAH MAT");
+                String winner = "WHITE".equals(currentTurn) ? I18n.t("color.black") : I18n.t("color.white");
+                endGame(I18n.win(winner, I18n.t("result.checkmate")));
                 return;
             }
             sound("check");
         } else if (getAllLegalMovesForColor(currentTurn).isEmpty()) {
-            endGame("PAT — Beraberlik!");
+            endGame(I18n.t("result.stalemate"));
             return;
         }
 
