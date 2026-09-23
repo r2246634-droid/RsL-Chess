@@ -1,0 +1,21 @@
+# Compiled output
+bin/
+*.class
+
+# Generated game history logs
+game_history/
+
+# Packaging artifacts (package.bat output)
+dist/
+bundle_temp/
+*.jar
+
+# Claude Code local settings (machine-specific paths/permissions)
+.claude/settings.local.json
+
+# OS / editor cruft
+Thumbs.db
+.DS_Store
+*.swp
+.vscode/
+.idea/
