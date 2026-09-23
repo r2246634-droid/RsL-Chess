@@ -27,6 +27,10 @@ public class GameController {
     private int moveCount      = 0;
     private Coordinate enPassantTarget = null;
 
+    // 50 hamle kuralı: piyon oynanmadan/taş alınmadan geçen yarım hamle sayısı.
+    // 100'e (50 tam hamle) ulaşınca oyun berabere biter.
+    private int halfmoveClock = 0;
+
     private final List<String> moveLog = new ArrayList<>();
 
     private Runnable onBoardChanged;
@@ -155,8 +159,11 @@ public class GameController {
         sound(isCapture ? "capture" : "move");
         moveCount++;
 
+        boolean isPawnMove = "Pawn".equals(piece.getType());
+        halfmoveClock = (isPawnMove || isCapture) ? 0 : halfmoveClock + 1;
+
         // Pawn promotion → Queen
-        if ("Pawn".equals(piece.getType())) {
+        if (isPawnMove) {
             if (("WHITE".equals(piece.getColor()) && to.row() == 0)
                     || ("BLACK".equals(piece.getColor()) && to.row() == 7))
                 board.setPiece(to, new Queen(to, piece.getColor()));
@@ -191,6 +198,11 @@ public class GameController {
             sound("check");
         } else if (getAllLegalMovesForColor(currentTurn).isEmpty()) {
             endGame(I18n.t("result.stalemate"));
+            return;
+        }
+
+        if (halfmoveClock >= 100) {
+            endGame(I18n.t("result.fiftyMove"));
             return;
         }
 

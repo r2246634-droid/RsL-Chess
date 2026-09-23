@@ -13,6 +13,10 @@ import java.util.List;
 
 public class ChessAI implements AIPlayer {
 
+    // Değerlendirme puanlarından (en fazla birkaç bin) çok büyük olmalı; mat
+    // tespit edildiğinde derinliğe göre ayarlanarak "en hızlı mat" tercih edilir.
+    private static final int MATE_SCORE = 1_000_000;
+
     private final int maxDepth;
 
     public ChessAI(int depth) {
@@ -45,8 +49,10 @@ public class ChessAI implements AIPlayer {
 
         List<Move> moves = getAllMoves(board, color);
         if (moves.isEmpty()) {
-            // Mat: şah çekindeyse ağır ceza, pat: sıfır
-            return ChessRules.isInCheck(board, color) ? (Integer.MIN_VALUE + 10) : 0;
+            // Mat: ağır ceza — kalan derinlik puana eklenerek DAHA HIZLI matlar
+            // (kökten daha az hamlede ulaşılanlar) her zaman daha yavaş bir mata
+            // tercih edilir. Pat: sıfır (berabere, ne iyi ne kötü).
+            return ChessRules.isInCheck(board, color) ? -(MATE_SCORE + depth) : 0;
         }
 
         int best = Integer.MIN_VALUE + 1;

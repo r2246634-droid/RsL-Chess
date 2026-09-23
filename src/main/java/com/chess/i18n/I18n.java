@@ -53,6 +53,7 @@ public final class I18n {
         put("result.timeout",    "Süre bitti",             "Time's up",               "Время истекло");
         put("result.checkmate",  "ŞAH MAT",                "CHECKMATE",               "МАТ");
         put("result.stalemate",  "PAT — Beraberlik!",      "STALEMATE — Draw!",       "ПАТ — Ничья!");
+        put("result.fiftyMove",  "50 HAMLE KURALI — Beraberlik!", "FIFTY-MOVE RULE — Draw!", "ПРАВИЛО 50 ХОДОВ — Ничья!");
         put("result.disconnected", "Bağlantı kesildi",     "Disconnected",            "Соединение разорвано");
 
         // ── Oyun modu / süre etiketleri (GameConfig) ────────────────────────

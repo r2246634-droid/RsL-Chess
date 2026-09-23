@@ -6,7 +6,8 @@ JavaFX ile yazılmış, yapay zeka destekli bir satranç oyunu. Tek bilgisayarda
 
 ## Özellikler
 
-- Tam kurallı satranç: rok (kısa/uzun), geçerken alma (en passant), piyon terfisi (Vezir), şah/mat/pat tespiti
+- Tam kurallı satranç: rok (kısa/uzun), geçerken alma (en passant), piyon terfisi (Vezir), şah/mat/pat tespiti, 50 hamle kuralı
+- Yapay zeka, mümkün olan en az hamlede mat etmeyi tercih eder (ve kaybediyorsa mümkün olduğunca oyalanır)
 - 3 dil desteği: Türkçe, İngilizce, Rusça (ana menüden anında değiştirilebilir)
 - 3 zorluk seviyesinde yapay zeka (negamax + alpha-beta budama)
 - Yerel ağ üzerinden 2 oyunculu çevrimiçi mod (sohbet dahil)
