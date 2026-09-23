@@ -6,11 +6,14 @@ JavaFX ile yazılmış, yapay zeka destekli bir satranç oyunu. Tek bilgisayarda
 
 ## Özellikler
 
-- Tam kurallı satranç: rok (kısa/uzun), geçerken alma (en passant), piyon terfisi (Vezir), şah/mat/pat tespiti, 50 hamle kuralı
-- Yapay zeka, mümkün olan en az hamlede mat etmeyi tercih eder (ve kaybediyorsa mümkün olduğunca oyalanır)
+- Tam kurallı satranç: rok (kısa/uzun), geçerken alma (en passant), piyon terfisi (Vezir/Kale/Fil/At seçimi), şah/mat/pat tespiti
+- Tüm beraberlik kuralları: 50 hamle kuralı, üçlü tekrar, yetersiz materyal
+- İstifa, karşılıklı beraberlik teklifi (yapay zekaya karşı materyal durumuna göre kabul/red) ve hamle geri alma
+- Gerçek satranç notasyonu (Nf3, O-O, exd5, Qxh7# gibi) — hem hamle listesinde hem kaydedilen dosyada
+- Yapay zeka artık pozisyonel değerlendirme de yapıyor (merkez kontrolü, şah güvenliği, vb.) ve mümkün olan en az hamlede mat etmeyi tercih ediyor (kaybediyorsa oyalanır)
 - 3 dil desteği: Türkçe, İngilizce, Rusça (ana menüden anında değiştirilebilir)
 - 3 zorluk seviyesinde yapay zeka (negamax + alpha-beta budama)
-- Yerel ağ üzerinden 2 oyunculu çevrimiçi mod (sohbet dahil)
+- Yerel ağ üzerinden 2 oyunculu çevrimiçi mod (sohbet, istifa ve beraberlik teklifi senkronize edilir)
 - Süreli oyun modları (Bullet, Blitz, Rapid) ve süresiz mod
 - 5 farklı görsel tema (Klasik, Minimalist, Fantezi, Cam, Fütüristik)
 - Hamle sırasında yalnızca oynanan taşın kaydığı, pürüzsüz animasyonlar

@@ -54,6 +54,10 @@ public final class I18n {
         put("result.checkmate",  "ŞAH MAT",                "CHECKMATE",               "МАТ");
         put("result.stalemate",  "PAT — Beraberlik!",      "STALEMATE — Draw!",       "ПАТ — Ничья!");
         put("result.fiftyMove",  "50 HAMLE KURALI — Beraberlik!", "FIFTY-MOVE RULE — Draw!", "ПРАВИЛО 50 ХОДОВ — Ничья!");
+        put("result.repetition", "ÜÇLÜ TEKRAR — Beraberlik!", "THREEFOLD REPETITION — Draw!", "ТРОЙНОЕ ПОВТОРЕНИЕ — Ничья!");
+        put("result.insufficientMaterial", "YETERSİZ MATERYAL — Beraberlik!", "INSUFFICIENT MATERIAL — Draw!", "НЕДОСТАТОЧНО МАТЕРИАЛА — Ничья!");
+        put("result.resignation", "İSTİFA", "RESIGNATION", "СДАЧА");
+        put("result.drawAgreed", "Karşılıklı anlaşma — Beraberlik!", "Draw by agreement!", "Ничья по соглашению!");
         put("result.disconnected", "Bağlantı kesildi",     "Disconnected",            "Соединение разорвано");
 
         // ── Oyun modu / süre etiketleri (GameConfig) ────────────────────────
@@ -148,6 +152,27 @@ public final class I18n {
                 "Oyun geçmişi kaydedildi.\nYeni oyun için menüye dönün.",
                 "Game history saved.\nReturn to the menu for a new game.",
                 "История игры сохранена.\nВернитесь в меню для новой игры.");
+
+        put("game.resign", "🏳 İstifa", "🏳 Resign", "🏳 Сдаться");
+        put("game.offer_draw", "🤝 Beraberlik Teklif Et", "🤝 Offer Draw", "🤝 Предложить ничью");
+        put("game.undo", "↶ Geri Al", "↶ Undo", "↶ Отменить");
+        put("game.resign_confirm_title", "İstifa", "Resign", "Сдаться");
+        put("game.resign_confirm_content", "İstifa etmek istediğinizden emin misiniz?",
+                "Are you sure you want to resign?", "Вы уверены, что хотите сдаться?");
+        put("game.draw_confirm_title", "Beraberlik Teklifi", "Draw Offer", "Предложение ничьей");
+        put("game.draw_confirm_content", "Rakip beraberlik teklif etti. Kabul ediyor musunuz?",
+                "Your opponent offers a draw. Do you accept?", "Соперник предлагает ничью. Принимаете?");
+        put("game.draw_declined", "Beraberlik teklifi reddedildi.", "Draw offer declined.", "Предложение ничьей отклонено.");
+        put("game.draw_declined_by_ai", "Yapay zeka beraberlik teklifini reddetti.",
+                "The AI declined the draw offer.", "ИИ отклонил предложение ничьей.");
+
+        put("piece.queen", "Vezir", "Queen", "Ферзь");
+        put("piece.rook", "Kale", "Rook", "Ладья");
+        put("piece.bishop", "Fil", "Bishop", "Слон");
+        put("piece.knight", "At", "Knight", "Конь");
+        put("promotion.title", "Terfi", "Promotion", "Превращение");
+        put("promotion.desc", "Piyonunuz hangi taşa dönüşsün?", "Choose a piece for your pawn",
+                "Выберите фигуру для пешки");
 
         // ── Oyun geçmişi dosyası (GameHistory) ───────────────────────────────
         put("history.title",  "RsL Chess - Oyun Gecmisi", "RsL Chess - Game History", "RsL Chess - История игры");

@@ -6,10 +6,13 @@ import java.util.function.Consumer;
 
 /**
  * TCP socket wrapper. Protocol: pipe-delimited lines.
- *   HELLO|playerName|WHITE   — handshake
- *   MOVE|fromRow|fromCol|toRow|toCol
+ *   HELLO|playerName|WHITE          — handshake
+ *   MOVE|fromRow|fromCol|toRow|toCol|promo   — promo: "" | "Queen" | "Rook" | "Bishop" | "Knight"
  *   CHAT|playerName|message text
- *   BYE                      — graceful disconnect
+ *   RESIGN                          — sender resigns
+ *   DRAW_OFFER                      — sender offers a draw
+ *   DRAW_RESPONSE|1|0               — 1 = accepted, 0 = declined
+ *   BYE                             — graceful disconnect
  */
 public class NetworkManager {
 
@@ -24,10 +27,13 @@ public class NetworkManager {
     private String localColor;
 
     // Callbacks — all fired on the UI thread via uiExecutor
-    private Consumer<String> onMoveReceived;   // "fromRow,fromCol,toRow,toCol"
+    private Consumer<String> onMoveReceived;   // "fromRow,fromCol,toRow,toCol,promo"
     private Consumer<String> onChatReceived;   // "Name: message"
     private Runnable onConnected;
     private Runnable onDisconnected;
+    private Runnable onResignReceived;
+    private Runnable onDrawOffered;
+    private Consumer<Boolean> onDrawResponse;
     private Consumer<Runnable> uiExecutor = Runnable::run;
 
     // ── Setters ──────────────────────────────────────────────────────────────
@@ -37,6 +43,9 @@ public class NetworkManager {
     public void setOnChatReceived(Consumer<String> c) { onChatReceived = c; }
     public void setOnConnected(Runnable r)    { onConnected = r; }
     public void setOnDisconnected(Runnable r) { onDisconnected = r; }
+    public void setOnResignReceived(Runnable r)          { onResignReceived = r; }
+    public void setOnDrawOffered(Runnable r)             { onDrawOffered = r; }
+    public void setOnDrawResponse(Consumer<Boolean> c)   { onDrawResponse = c; }
     public void setUiExecutor(Consumer<Runnable> e) { uiExecutor = e; }
 
     public String getLocalColor() { return localColor; }
@@ -73,13 +82,18 @@ public class NetworkManager {
 
     // ── Messaging ────────────────────────────────────────────────────────────
 
-    public void sendMove(int fromRow, int fromCol, int toRow, int toCol) {
-        send("MOVE|" + fromRow + "|" + fromCol + "|" + toRow + "|" + toCol);
+    public void sendMove(int fromRow, int fromCol, int toRow, int toCol, String promotionType) {
+        send("MOVE|" + fromRow + "|" + fromCol + "|" + toRow + "|" + toCol
+                + "|" + (promotionType == null ? "" : promotionType));
     }
 
     public void sendChat(String message) {
         send("CHAT|" + localPlayerName + "|" + message.replace("|", " "));
     }
+
+    public void sendResign()               { send("RESIGN"); }
+    public void sendDrawOffer()            { send("DRAW_OFFER"); }
+    public void sendDrawResponse(boolean accepted) { send("DRAW_RESPONSE|" + (accepted ? "1" : "0")); }
 
     public void disconnect() {
         try {
@@ -107,7 +121,8 @@ public class NetworkManager {
                         break;
                     case "MOVE":
                         if (p.length >= 5) {
-                            String coords = p[1] + "," + p[2] + "," + p[3] + "," + p[4];
+                            String promo = p.length >= 6 ? p[5] : "";
+                            String coords = p[1] + "," + p[2] + "," + p[3] + "," + p[4] + "," + promo;
                             ui(() -> { if (onMoveReceived != null) onMoveReceived.accept(coords); });
                         }
                         break;
@@ -115,6 +130,18 @@ public class NetworkManager {
                         if (p.length >= 3) {
                             String msg = p[1] + ": " + p[2];
                             ui(() -> { if (onChatReceived != null) onChatReceived.accept(msg); });
+                        }
+                        break;
+                    case "RESIGN":
+                        ui(() -> { if (onResignReceived != null) onResignReceived.run(); });
+                        break;
+                    case "DRAW_OFFER":
+                        ui(() -> { if (onDrawOffered != null) onDrawOffered.run(); });
+                        break;
+                    case "DRAW_RESPONSE":
+                        if (p.length >= 2) {
+                            boolean accepted = "1".equals(p[1]);
+                            ui(() -> { if (onDrawResponse != null) onDrawResponse.accept(accepted); });
                         }
                         break;
                     case "BYE":

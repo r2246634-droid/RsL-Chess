@@ -62,6 +62,17 @@ public class Board {
         return b;
     }
 
+    /** Bu tahtanın içeriğini `other`'ın bir kopyasıyla değiştirir (geri alma/undo için). */
+    public void copyFrom(Board other) {
+        clear();
+        for (int r = 0; r < ROWS; r++)
+            for (int c = 0; c < COLS; c++) {
+                Coordinate coord = new Coordinate(r, c);
+                Piece p = other.getPiece(coord);
+                if (p != null) setPiece(coord, p.copy(coord));
+            }
+    }
+
     /**
      * Tahtanın tüm içeriğini temizler.
      */

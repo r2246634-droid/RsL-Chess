@@ -69,6 +69,80 @@ public class GameScreen {
         // Tema seçici (küçük butonlar)
         HBox themeRow = buildThemeRow(boardUI);
 
+        // İstifa / Beraberlik teklifi / Geri al
+        Button resignBtn = smallBtn(I18n.t("game.resign"), "#f85149");
+        Button drawBtn   = smallBtn(I18n.t("game.offer_draw"), "#e3b341");
+        Button undoBtn   = smallBtn(I18n.t("game.undo"), "#58a6ff");
+        HBox actionsRow = new HBox(6, resignBtn, drawBtn, undoBtn);
+        actionsRow.setAlignment(Pos.CENTER);
+        actionsRow.setPadding(new Insets(6));
+        actionsRow.setStyle("-fx-background-color:#101820;");
+        HBox.setHgrow(resignBtn, Priority.ALWAYS);
+        HBox.setHgrow(drawBtn, Priority.ALWAYS);
+        HBox.setHgrow(undoBtn, Priority.ALWAYS);
+        resignBtn.setMaxWidth(Double.MAX_VALUE);
+        drawBtn.setMaxWidth(Double.MAX_VALUE);
+        undoBtn.setMaxWidth(Double.MAX_VALUE);
+
+        resignBtn.setOnAction(e -> {
+            if (controller.isGameOver()) return;
+            Alert confirm = infoAlert(AlertType.CONFIRMATION,
+                    I18n.t("game.resign_confirm_title"), I18n.t("game.resign_confirm_content"));
+            confirm.showAndWait().ifPresent(response -> {
+                if (response == ButtonType.OK) {
+                    String resigningColor;
+                    if (config.isNetworkMode())      resigningColor = config.localColor();
+                    else if (controller.isVsAI())    resigningColor = "WHITE";
+                    else                              resigningColor = controller.getCurrentTurn();
+                    controller.resign(resigningColor);
+                }
+            });
+        });
+
+        drawBtn.setOnAction(e -> {
+            if (controller.isGameOver()) return;
+            if (controller.isNetworkGame()) {
+                nm.sendDrawOffer();
+            } else if (controller.isVsAI()) {
+                if (controller.aiAcceptsDraw()) {
+                    controller.agreeDraw();
+                } else {
+                    infoAlert(AlertType.INFORMATION, I18n.t("game.offer_draw"),
+                            I18n.t("game.draw_declined_by_ai")).showAndWait();
+                }
+            } else {
+                Alert confirm = infoAlert(AlertType.CONFIRMATION,
+                        I18n.t("game.draw_confirm_title"), I18n.t("game.draw_confirm_content"));
+                confirm.showAndWait().ifPresent(response -> {
+                    if (response == ButtonType.OK) controller.agreeDraw();
+                    else infoAlert(AlertType.INFORMATION, I18n.t("game.offer_draw"),
+                            I18n.t("game.draw_declined")).showAndWait();
+                });
+            }
+        });
+
+        undoBtn.setOnAction(e -> {
+            if (!controller.canUndo()) return;
+            if (controller.isVsAI()) controller.undoLastMove(); else controller.undo();
+        });
+
+        if (nm != null) {
+            nm.setOnDrawOffered(() -> Platform.runLater(() -> {
+                Alert confirm = infoAlert(AlertType.CONFIRMATION,
+                        I18n.t("game.draw_confirm_title"), I18n.t("game.draw_confirm_content"));
+                confirm.showAndWait().ifPresent(response -> {
+                    boolean accepted = response == ButtonType.OK;
+                    nm.sendDrawResponse(accepted);
+                    if (accepted) controller.agreeDraw();
+                });
+            }));
+            nm.setOnDrawResponse(accepted -> Platform.runLater(() -> {
+                if (accepted) controller.agreeDraw();
+                else infoAlert(AlertType.INFORMATION, I18n.t("game.offer_draw"),
+                        I18n.t("game.draw_declined")).showAndWait();
+            }));
+        }
+
         // Siyah zamanlayıcı
         Label blackTimeLabel = timerLabel(I18n.t("game.black_label"), config.hasTimer() ? "--:--" : "∞");
         VBox blackBox = timerBox(blackTimeLabel, "#1c1c2e", "#444466");
@@ -102,9 +176,9 @@ public class GameScreen {
 
         VBox rightPanel;
         if (chatSection != null) {
-            rightPanel = new VBox(0, themeRow, blackBox, moveSection, chatSection, whiteBox, statusRow);
+            rightPanel = new VBox(0, themeRow, actionsRow, blackBox, moveSection, chatSection, whiteBox, statusRow);
         } else {
-            rightPanel = new VBox(0, themeRow, blackBox, moveSection, whiteBox, statusRow);
+            rightPanel = new VBox(0, themeRow, actionsRow, blackBox, moveSection, whiteBox, statusRow);
         }
         rightPanel.setStyle("-fx-background-color:#0d1117;-fx-border-color:#21262d;-fx-border-width:0 0 0 1;");
         rightPanel.setPrefWidth(290);
@@ -152,6 +226,12 @@ public class GameScreen {
                 setTimerText(blackTimeLabel, "∞", false, false);
             }
             updateMoveList(moveList, controller.getMoveLog());
+
+            boolean over = controller.isGameOver();
+            resignBtn.setDisable(over);
+            drawBtn.setDisable(over);
+            undoBtn.setDisable(over || !controller.canUndo() || controller.isNetworkGame()
+                    || config.hasTimer() || controller.isAITurn());
         };
 
         boardUI.setOnMoveCompleted(updateStatus);
@@ -370,6 +450,15 @@ public class GameScreen {
         b.setOnMouseEntered(e -> b.setStyle(hover));
         b.setOnMouseExited(e -> b.setStyle(base));
         return b;
+    }
+
+    private static Alert infoAlert(AlertType type, String title, String content) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(content);
+        alert.getDialogPane().setStyle("-fx-background-color:#161b22;-fx-border-color:#d4af37;");
+        return alert;
     }
 
     private static Region spacer() {

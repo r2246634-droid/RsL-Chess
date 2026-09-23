@@ -522,7 +522,16 @@ public class ChessBoardUI extends Pane {
     private void doMove(Coordinate to) {
         Coordinate from = selected;
         clearHighlight();
-        controller.executeMove(from, to);
+        Piece moving = controller.getBoard().getPiece(from);
+        boolean isPromotion = moving != null && "Pawn".equals(moving.getType())
+                && (to.row() == 0 || to.row() == 7);
+        if (isPromotion) {
+            javafx.stage.Stage owner = (javafx.stage.Stage) getScene().getWindow();
+            String choice = PromotionDialog.show(owner, "WHITE".equals(moving.getColor()));
+            controller.executeMove(from, to, choice);
+        } else {
+            controller.executeMove(from, to);
+        }
     }
 
     private void clearHighlight() {

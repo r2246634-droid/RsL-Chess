@@ -72,7 +72,8 @@ public class ChessAI implements AIPlayer {
             for (int c = 0; c < 8; c++) {
                 Piece p = board.getPiece(new Coordinate(r, c));
                 if (p == null) continue;
-                int val = pieceValue(p.getType());
+                int val = pieceValue(p.getType())
+                        + PieceSquareTables.valueAt(p.getType(), p.getColor(), r, c);
                 score += p.getColor().equals(color) ? val : -val;
             }
         }

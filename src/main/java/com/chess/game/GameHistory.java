@@ -9,17 +9,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 
 public class GameHistory {
 
     private static final Path HISTORY_DIR = Path.of("game_history");
 
-    private final List<String> entries = new ArrayList<>();
     private final String gameMode;
     private final String startTime;
-    private int moveNumber = 1;
 
     public GameHistory(String gameMode) {
         this.gameMode = gameMode;
@@ -27,14 +24,8 @@ public class GameHistory {
                 .format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"));
     }
 
-    public void record(String color, String pieceType, String from, String to, boolean capture) {
-        String side = color.equals("WHITE") ? I18n.t("color.white") : I18n.t("color.black");
-        String entry = String.format("  %3d. [%s] %s %s -> %s%s",
-                moveNumber++, side, pieceType, from, to, capture ? I18n.t("history.capture") : "");
-        entries.add(entry);
-    }
-
-    public void save(String result) {
+    /** sanMoves: GameController.getMoveLog() — beyaz/siyah sırayla SAN gösterimleri. */
+    public void save(List<String> sanMoves, String result) {
         String filename = "rsl_chess_"
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
                 + ".txt";
@@ -51,7 +42,11 @@ public class GameHistory {
             pw.println(I18n.t("history.date") + " : " + startTime);
             pw.println(I18n.t("history.mode") + " : " + gameMode);
             pw.println("-----------------------------------------");
-            entries.forEach(pw::println);
+            for (int i = 0; i < sanMoves.size(); i += 2) {
+                String white = sanMoves.get(i);
+                String black = (i + 1 < sanMoves.size()) ? sanMoves.get(i + 1) : "";
+                pw.println(String.format("  %3d. %-10s %s", (i / 2) + 1, white, black));
+            }
             pw.println("-----------------------------------------");
             pw.println(I18n.t("history.result") + " : " + result);
             pw.println("=========================================");
