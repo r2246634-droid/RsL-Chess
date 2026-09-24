@@ -4,8 +4,8 @@
 
 JavaFX ile yazılmış, yapay zeka destekli bir satranç oyunu. Tek bilgisayarda iki oyuncu, yapay zekaya karşı üç zorluk seviyesi, ya da yerel ağ üzerinden iki oyuncu (TCP) olarak oynanabilir.
 
-<!-- Ekran görüntüsü: docs/screenshot.png dosyasını ekleyip aşağıdaki satırın başındaki yorum işaretlerini kaldırın -->
-<!-- ![RsL Chess](docs/screenshot.png) -->
+
+![RsL Chess](docs/screenshot.png)
 
 ## Özellikler
 
@@ -24,7 +24,17 @@ JavaFX ile yazılmış, yapay zeka destekli bir satranç oyunu. Tek bilgisayarda
 - Prosedürel olarak üretilen ses efektleri (hamle, yakalama, şah, mat)
 - Her oyun sonunda `game_history/` klasörüne kaydedilen okunabilir hamle geçmişi
 
-## Kurulum ve Çalıştırma
+## İndir ve Oyna (Windows)
+
+Java veya JavaFX kurmanıza gerek yok:
+
+1. [Releases](https://github.com/r2246634-droid/RsL-Chess/releases/latest) sayfasından `RsL-Chess-<sürüm>-windows.zip` dosyasını indirin.
+2. Zip'i bir klasöre çıkarın.
+3. `RsL Chess\RsL Chess.exe` dosyasını çalıştırın.
+
+> Windows SmartScreen "Windows bilgisayarınızı korudu" uyarısı gösterebilir (uygulama imzalı değil): **Ek bilgi → Yine de çalıştır**.
+
+## Kaynaktan Derleme
 
 Bağımlılık yönetimi Maven/Gradle ile değil, doğrudan `javac`/`java` ile yapılır.
 
@@ -45,10 +55,11 @@ Bağımlılık yönetimi Maven/Gradle ile değil, doğrudan `javac`/`java` ile y
    ```
    run.bat
    ```
-4. Windows için tek başına çalışan bir `.exe` paketlemek isterseniz (JDK'daki `jpackage` aracı ve [WiX Toolset](https://wixtoolset.org/) gerekir):
+4. Java kurulumu gerektirmeyen Windows paketi oluşturmak isterseniz:
    ```
    package.bat
    ```
+   `dist\` altında taşınabilir `RsL Chess\RsL Chess.exe` ve bunun zip'i oluşur. [WiX Toolset](https://wixtoolset.org/) kuruluysa ek olarak kurulum sihirbazı (`RsL Chess-<sürüm>.exe`) da üretilir.
 
 Çevrimiçi mod için iki bilgisayar aynı yerel ağda olmalı; host bilgisayarda **5000 numaralı TCP portuna** güvenlik duvarında izin verilmelidir.
 
