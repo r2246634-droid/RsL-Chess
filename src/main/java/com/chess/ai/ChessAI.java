@@ -25,7 +25,14 @@ public class ChessAI implements AIPlayer {
 
     @Override
     public Move chooseMove(Board board, String aiColor) {
-        List<Move> moves = getAllMoves(board, aiColor);
+        return chooseMove(board, aiColor, null);
+    }
+
+    @Override
+    public Move chooseMove(Board board, String aiColor, Coordinate enPassantTarget) {
+        // Geçerken alma yalnızca kökte değerlendirilir: aksi halde tek kurtuluşu
+        // geçerken alma olan bir pozisyonda AI hiç hamle bulamaz ve oyun kilitlenirdi.
+        List<Move> moves = getAllMoves(board, aiColor, enPassantTarget);
         if (moves.isEmpty()) return null;
 
         if (maxDepth == 1) Collections.shuffle(moves);
@@ -35,7 +42,8 @@ public class ChessAI implements AIPlayer {
 
         for (Move move : moves) {
             Board next = applyMove(board, move);
-            int score = -negamax(next, maxDepth - 1, Integer.MIN_VALUE + 1, Integer.MAX_VALUE, opponent(aiColor));
+            // Kökte de alfa-beta: şimdiye kadarki en iyi skor alt sınır olarak geçilir.
+            int score = -negamax(next, maxDepth - 1, Integer.MIN_VALUE + 1, -bestScore, opponent(aiColor));
             if (score > bestScore) {
                 bestScore = score;
                 best = move;
@@ -47,7 +55,7 @@ public class ChessAI implements AIPlayer {
     private int negamax(Board board, int depth, int alpha, int beta, String color) {
         if (depth == 0) return evaluate(board, color);
 
-        List<Move> moves = getAllMoves(board, color);
+        List<Move> moves = getAllMoves(board, color, null);
         if (moves.isEmpty()) {
             // Mat: ağır ceza — kalan derinlik puana eklenerek DAHA HIZLI matlar
             // (kökten daha az hamlede ulaşılanlar) her zaman daha yavaş bir mata
@@ -93,14 +101,14 @@ public class ChessAI implements AIPlayer {
     }
 
     // Şah çeki altında bırakacak hamleleri filtreler
-    private List<Move> getAllMoves(Board board, String color) {
+    private List<Move> getAllMoves(Board board, String color, Coordinate enPassantTarget) {
         List<Move> moves = new ArrayList<>();
         for (int r = 0; r < 8; r++) {
             for (int c = 0; c < 8; c++) {
                 Piece p = board.getPiece(new Coordinate(r, c));
                 if (p == null || !p.getColor().equals(color)) continue;
-                // AI arama ağacında geçerken alma hakkını izlemiyoruz (nadir ve maliyetli); rok desteklenir.
-                for (Coordinate target : ChessRules.pseudoLegalMovesWithSpecials(board, p.getPosition(), null)) {
+                // Geçerken alma hakkı yalnızca kökte verilir, arama ağacında izlenmez; rok desteklenir.
+                for (Coordinate target : ChessRules.pseudoLegalMovesWithSpecials(board, p.getPosition(), enPassantTarget)) {
                     Board next = applyMove(board, new Move(p.getPosition(), target));
                     if (!ChessRules.isInCheck(next, color)) {
                         moves.add(new Move(p.getPosition(), target));
@@ -114,8 +122,10 @@ public class ChessAI implements AIPlayer {
     private Board applyMove(Board board, Move move) {
         Board next = board.copy();
         Piece piece = next.getPiece(move.from());
+        Piece capturedAtTo = next.getPiece(move.to());
         next.setPiece(move.from(), null);
         next.setPiece(move.to(), piece);
+        ChessRules.resolveEnPassant(next, piece, move.from(), move.to(), capturedAtTo);
         ChessRules.finalizeMove(next, piece, move.from(), move.to());
 
         if ("Pawn".equals(piece.getType())) {

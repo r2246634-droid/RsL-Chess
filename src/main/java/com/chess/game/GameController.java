@@ -28,6 +28,8 @@ public class GameController {
 
     private String currentTurn = "WHITE";
     private boolean gameOver   = false;
+    // Ekrandan çıkıldıysa (menüye dönüş) true: geç gelen AI/ağ/saat olayları yok sayılır.
+    private boolean disposed   = false;
     private int moveCount      = 0;
     private Coordinate enPassantTarget = null;
 
@@ -42,6 +44,9 @@ public class GameController {
     private final Deque<Snapshot> undoStack = new ArrayDeque<>();
 
     private final List<String> moveLog = new ArrayList<>(); // SAN gösterimi (Nf3, O-O, Qxh7# ...)
+
+    // Oyundan alınmış (yenmiş) taşlar, alınma sırasıyla.
+    private final List<Piece> capturedPieces = new ArrayList<>();
 
     private Runnable onBoardChanged;
     private Consumer<String> onGameOver;
@@ -70,6 +75,13 @@ public class GameController {
     public GameTimer getTimer()      { return timer; }
     public List<String> getMoveLog() { return Collections.unmodifiableList(moveLog); }
 
+    /** Verilen renkteki, rakip tarafından yenmiş taşların türleri (alınma sırasıyla). */
+    public List<String> getCapturedTypes(String color) {
+        List<String> types = new ArrayList<>();
+        for (Piece p : capturedPieces) if (color.equals(p.getColor())) types.add(p.getType());
+        return types;
+    }
+
     public boolean isAITurn() {
         return ai != null && "BLACK".equals(currentTurn) && !gameOver;
     }
@@ -97,17 +109,25 @@ public class GameController {
         if (nm == null) return;
         nm.setOnMoveReceived(coords -> {
             String[] p = coords.split(",", -1);
-            Coordinate from = new Coordinate(Integer.parseInt(p[0]), Integer.parseInt(p[1]));
-            Coordinate to   = new Coordinate(Integer.parseInt(p[2]), Integer.parseInt(p[3]));
+            Coordinate from, to;
+            try {
+                from = new Coordinate(Integer.parseInt(p[0]), Integer.parseInt(p[1]));
+                to   = new Coordinate(Integer.parseInt(p[2]), Integer.parseInt(p[3]));
+            } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+                return; // bozuk mesaj
+            }
+            if (!board.isWithinBounds(from) || !board.isWithinBounds(to)) return;
             String promo = (p.length >= 5 && !p[4].isEmpty()) ? p[4] : null;
             executeMove(from, to, promo);   // already on UI thread via uiExecutor set in NetworkManager
         });
         nm.setOnDisconnected(() -> {
-            if (!gameOver && onGameOver != null)
-                onGameOver.accept(I18n.t("result.disconnected"));
+            if (gameOver || disposed) return;
+            gameOver = true;
+            if (timer != null) timer.stop();
+            if (onGameOver != null) onGameOver.accept(I18n.t("result.disconnected"));
         });
         nm.setOnResignReceived(() -> {
-            if (gameOver) return;
+            if (gameOver || disposed) return;
             String winnerName = "WHITE".equals(config.localColor())
                     ? I18n.t("color.white") : I18n.t("color.black");
             endGame(I18n.win(winnerName, I18n.t("result.resignation")));
@@ -118,15 +138,28 @@ public class GameController {
 
     public void startTimer() {
         if (timer == null) return;
-        timer.setOnWhiteTimeout(() -> uiExecutor.accept(() -> {
-            if (!gameOver) endGame(I18n.win(I18n.t("color.black"),
-                    I18n.t("result.timeout") + " (" + I18n.t("color.white") + ")"));
-        }));
-        timer.setOnBlackTimeout(() -> uiExecutor.accept(() -> {
-            if (!gameOver) endGame(I18n.win(I18n.t("color.white"),
-                    I18n.t("result.timeout") + " (" + I18n.t("color.black") + ")"));
-        }));
+        timer.setOnWhiteTimeout(() -> uiExecutor.accept(() -> onTimeout("WHITE")));
+        timer.setOnBlackTimeout(() -> uiExecutor.accept(() -> onTimeout("BLACK")));
         timer.start(true);
+    }
+
+    /** Süresi biten taraf kaybeder — rakibinin mat edecek materyali yoksa oyun berabere biter (FIDE 6.9). */
+    private void onTimeout(String flaggedColor) {
+        if (gameOver || disposed) return;
+        String winner = ChessRules.opponent(flaggedColor);
+        if (!hasMatingMaterial(winner)) {
+            endGame(I18n.t("result.timeoutVsInsufficient"));
+            return;
+        }
+        String winnerName  = "WHITE".equals(winner) ? I18n.t("color.white") : I18n.t("color.black");
+        String flaggedName = "WHITE".equals(flaggedColor) ? I18n.t("color.white") : I18n.t("color.black");
+        endGame(I18n.win(winnerName, I18n.t("result.timeout") + " (" + flaggedName + ")"));
+    }
+
+    /** Oyun ekranından çıkılırken çağrılır: saati durdurur, sonradan gelen AI/ağ/saat olaylarını etkisiz kılar. */
+    public void dispose() {
+        disposed = true;
+        if (timer != null) timer.stop();
     }
 
     // ── Check detection ───────────────────────────────────────────────────────
@@ -167,10 +200,12 @@ public class GameController {
 
     /** promotionType: "Queen"|"Rook"|"Bishop"|"Knight", ya da terfi yoksa/otomatikse null (→ Vezir). */
     public void executeMove(Coordinate from, Coordinate to, String promotionType) {
-        if (gameOver || from == null || to == null) return;
+        if (gameOver || disposed || from == null || to == null) return;
         Piece piece    = board.getPiece(from);
         Piece captured = board.getPiece(to);
         if (piece == null) return;
+        // Sırası olmayan taş ya da yasal olmayan hamle (bayat UI seçimi, bozuk ağ mesajı) reddedilir.
+        if (!piece.getColor().equals(currentTurn) || !getLegalMoves(from).contains(to)) return;
 
         // Is this move made by the local human player?
         boolean localMove = networkManager != null
@@ -182,7 +217,7 @@ public class GameController {
         boolean promotes = isPawnMove && (to.row() == 0 || to.row() == 7);
         String resolvedPromotion = promotes ? (promotionType != null ? promotionType : "Queen") : null;
 
-        undoStack.push(new Snapshot(board.copy(), currentTurn, enPassantTarget, halfmoveClock, moveLog, positionCounts));
+        undoStack.push(new Snapshot(board.copy(), currentTurn, enPassantTarget, halfmoveClock, moveLog, positionCounts, capturedPieces));
 
         // SAN'ın taş türü/belirsizlik-giderme kısmı, tahta değişmeden ÖNCE hesaplanmalı.
         String sanBody = SanNotation.toSan(board, from, to, isCapture, resolvedPromotion);
@@ -191,6 +226,8 @@ public class GameController {
         board.setPiece(to, piece);
 
         Piece epCaptured = ChessRules.resolveEnPassant(board, piece, from, to, captured);
+        if (captured != null) capturedPieces.add(captured);
+        else if (epCaptured != null) capturedPieces.add(epCaptured);
         ChessRules.finalizeMove(board, piece, from, to);
 
         sound(isCapture ? "capture" : "move");
@@ -265,6 +302,8 @@ public class GameController {
         moveLog.addAll(s.moveLog);
         positionCounts.clear();
         positionCounts.putAll(s.positionCounts);
+        capturedPieces.clear();
+        capturedPieces.addAll(s.capturedPieces);
         moveCount = Math.max(0, moveCount - 1);
         if (onBoardChanged != null) onBoardChanged.run();
     }
@@ -353,9 +392,10 @@ public class GameController {
 
     private void triggerAIMove() {
         Board snapshot = board.copy();
+        Coordinate ep = enPassantTarget;
         Thread t = new Thread(() -> {
             try { Thread.sleep(350); } catch (InterruptedException ignored) {}
-            Move move = ai.chooseMove(snapshot, "BLACK");
+            Move move = ai.chooseMove(snapshot, "BLACK", ep);
             if (move != null) uiExecutor.accept(() -> executeMove(move.from(), move.to()));
         });
         t.setDaemon(true);
@@ -456,7 +496,24 @@ public class GameController {
         return false;
     }
 
+    /** Tek başına Şah, ya da Şah + tek hafif taş: mat etmek mümkün değil sayılır. */
+    private boolean hasMatingMaterial(String color) {
+        int minors = 0;
+        for (int r = 0; r < 8; r++)
+            for (int c = 0; c < 8; c++) {
+                Piece p = board.getPiece(new Coordinate(r, c));
+                if (p == null || !color.equals(p.getColor())) continue;
+                switch (p.getType()) {
+                    case "Pawn": case "Rook": case "Queen": return true;
+                    case "Knight": case "Bishop": minors++; break;
+                    default: break;
+                }
+            }
+        return minors >= 2;
+    }
+
     private void endGame(String result) {
+        if (disposed) return;
         gameOver = true;
         if (timer != null) timer.stop();
         history.save(moveLog, result);
@@ -482,15 +539,17 @@ public class GameController {
         final int halfmoveClock;
         final List<String> moveLog;
         final Map<String, Integer> positionCounts;
+        final List<Piece> capturedPieces;
 
         Snapshot(Board board, String turn, Coordinate enPassant, int halfmoveClock,
-                 List<String> moveLog, Map<String, Integer> positionCounts) {
+                 List<String> moveLog, Map<String, Integer> positionCounts, List<Piece> capturedPieces) {
             this.board = board;
             this.turn = turn;
             this.enPassant = enPassant;
             this.halfmoveClock = halfmoveClock;
             this.moveLog = new ArrayList<>(moveLog);
             this.positionCounts = new HashMap<>(positionCounts);
+            this.capturedPieces = new ArrayList<>(capturedPieces);
         }
     }
 }

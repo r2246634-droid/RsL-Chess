@@ -56,6 +56,7 @@ public final class I18n {
         put("result.fiftyMove",  "50 HAMLE KURALI — Beraberlik!", "FIFTY-MOVE RULE — Draw!", "ПРАВИЛО 50 ХОДОВ — Ничья!");
         put("result.repetition", "ÜÇLÜ TEKRAR — Beraberlik!", "THREEFOLD REPETITION — Draw!", "ТРОЙНОЕ ПОВТОРЕНИЕ — Ничья!");
         put("result.insufficientMaterial", "YETERSİZ MATERYAL — Beraberlik!", "INSUFFICIENT MATERIAL — Draw!", "НЕДОСТАТОЧНО МАТЕРИАЛА — Ничья!");
+        put("result.timeoutVsInsufficient", "SÜRE BİTTİ, rakibin mat materyali yok — Beraberlik!", "TIME'S UP vs insufficient material — Draw!", "ВРЕМЯ ИСТЕКЛО при недостатке материала — Ничья!");
         put("result.resignation", "İSTİFA", "RESIGNATION", "СДАЧА");
         put("result.drawAgreed", "Karşılıklı anlaşma — Beraberlik!", "Draw by agreement!", "Ничья по соглашению!");
         put("result.disconnected", "Bağlantı kesildi",     "Disconnected",            "Соединение разорвано");

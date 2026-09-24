@@ -26,6 +26,13 @@ public class NetworkManager {
     private String localPlayerName = "Oyuncu";
     private String localColor;
 
+    // Süre ayarı: host kendi ayarını HELLO ile yollar, misafir bunu kullanır (iki saat aynı kalsın).
+    private long timeInitialMs = -1;
+    private long timeIncrementMs = 0;
+
+    // disconnect() bizden geldiyse okuma döngüsünün kapanması "rakip ayrıldı" sayılmaz.
+    private volatile boolean closing = false;
+
     // Callbacks — all fired on the UI thread via uiExecutor
     private Consumer<String> onMoveReceived;   // "fromRow,fromCol,toRow,toCol,promo"
     private Consumer<String> onChatReceived;   // "Name: message"
@@ -51,6 +58,14 @@ public class NetworkManager {
     public String getLocalColor() { return localColor; }
     public String getLocalPlayerName() { return localPlayerName; }
 
+    public void setTimeControl(long initialMs, long incrementMs) {
+        timeInitialMs = initialMs;
+        timeIncrementMs = incrementMs;
+    }
+    /** Host'tan gelen (misafirde) ya da kendi ayarlanan (host'ta) süre; bilinmiyorsa -1. */
+    public long getTimeInitialMs()   { return timeInitialMs; }
+    public long getTimeIncrementMs() { return timeIncrementMs; }
+
     // ── Host (WHITE) ─────────────────────────────────────────────────────────
 
     public void startAsHost(Runnable onServerReady) {
@@ -61,10 +76,10 @@ public class NetworkManager {
                 ui(onServerReady);
                 socket = serverSocket.accept(); // blocks until client connects
                 setupIO();
-                send("HELLO|" + localPlayerName + "|WHITE");
+                send("HELLO|" + localPlayerName + "|WHITE|" + timeInitialMs + "|" + timeIncrementMs);
                 readLoop();
             } catch (IOException e) {
-                if (socket == null) return; // cancelled deliberately
+                if (socket == null || closing) return; // cancelled deliberately
                 ui(() -> { if (onDisconnected != null) onDisconnected.run(); });
             }
         }, "net-host").start();
@@ -96,6 +111,7 @@ public class NetworkManager {
     public void sendDrawResponse(boolean accepted) { send("DRAW_RESPONSE|" + (accepted ? "1" : "0")); }
 
     public void disconnect() {
+        closing = true;
         try {
             send("BYE");
             if (socket != null)       socket.close();
@@ -117,6 +133,12 @@ public class NetworkManager {
                 String[] p = line.split("\\|", -1);
                 switch (p[0]) {
                     case "HELLO":
+                        if (p.length >= 5 && "WHITE".equals(p[2])) {
+                            try {
+                                timeInitialMs   = Long.parseLong(p[3]);
+                                timeIncrementMs = Long.parseLong(p[4]);
+                            } catch (NumberFormatException ignored) {}
+                        }
                         ui(() -> { if (onConnected != null) onConnected.run(); });
                         break;
                     case "MOVE":
@@ -145,12 +167,12 @@ public class NetworkManager {
                         }
                         break;
                     case "BYE":
-                        ui(() -> { if (onDisconnected != null) onDisconnected.run(); });
+                        if (!closing) ui(() -> { if (onDisconnected != null) onDisconnected.run(); });
                         return;
                 }
             }
         } catch (IOException ignored) {}
-        ui(() -> { if (onDisconnected != null) onDisconnected.run(); });
+        if (!closing) ui(() -> { if (onDisconnected != null) onDisconnected.run(); });
     }
 
     private void send(String msg) {

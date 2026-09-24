@@ -75,6 +75,8 @@ public class ChessBoardUI extends Pane {
         controller.setUiExecutor(javafx.application.Platform::runLater);
         controller.setOnSoundEvent(ChessBoardUI::dispatchSound);
         controller.setOnBoardChanged(() -> {
+            // Geri alma vb. sonrası eski seçim/ipuçları bayat kalmasın
+            clearHighlight();
             refreshPieces();
             if (onMoveCompleted != null) onMoveCompleted.run();
         });
@@ -98,11 +100,7 @@ public class ChessBoardUI extends Pane {
         for (int r = 0; r < 8; r++) {
             for (int c = 0; c < 8; c++) {
                 StackPane cell = cells[r][c];
-                cell.getChildren().removeIf(n ->
-                    "sel-overlay".equals(n.getId()) ||
-                    "hint".equals(n.getId()) ||
-                    "check-ring".equals(n.getId()) ||
-                    "neon-border".equals(n.getId()));
+                removeById(cell, "sel-overlay", "hint", "check-ring", "neon-border");
                 setBg(cell, baseFill(r, c));
                 if (isNeon) addNeonBorder(cell);
             }
@@ -201,11 +199,9 @@ public class ChessBoardUI extends Pane {
             if (!coord.equals(selected) && !legalMoves.contains(coord))
                 bg.setFill(baseFill(r, c).deriveColor(0, 1, 0.84, 1));
         });
-        cell.setOnMouseExited(e -> {
-            Coordinate coord = new Coordinate(r, c);
-            if (!coord.equals(selected) && !legalMoves.contains(coord))
-                bg.setFill(baseFill(r, c));
-        });
+        // Seçim/ipucu ayrı katmanlarda çizilir, zemin her zaman temel renge dönebilir
+        // (aksi halde karartılmış kare seçimden sonra öyle takılı kalıyordu).
+        cell.setOnMouseExited(e -> bg.setFill(baseFill(r, c)));
         return cell;
     }
 
@@ -232,7 +228,7 @@ public class ChessBoardUI extends Pane {
     void refreshPieces() {
         for (int r = 0; r < 8; r++)
             for (int c = 0; c < 8; c++)
-                cells[r][c].getChildren().removeIf(n -> "check-ring".equals(n.getId()));
+                removeById(cells[r][c], "check-ring");
 
         Board board = controller.getBoard();
         Map<Piece, Coordinate> newPos = new IdentityHashMap<>();
@@ -248,7 +244,18 @@ public class ChessBoardUI extends Pane {
         for (Piece p : pieceNodes.keySet()) {
             if (!newPos.containsKey(p)) vanished.add(p);
         }
+        // Geri alma tahtayı kopyalardan yeniden kurar (yeni referanslar): aynı karede aynı
+        // tür/renkte yeni bir taş varsa eski düğümü devral, 32 taşın hepsi sönüp yeniden belirmesin.
         for (Piece p : vanished) {
+            Coordinate at = pieceCoords.get(p);
+            Piece successor = board.getPiece(at);
+            if (successor != null && !pieceNodes.containsKey(successor)
+                    && successor.getType().equals(p.getType())
+                    && successor.getColor().equals(p.getColor())) {
+                pieceNodes.put(successor, pieceNodes.remove(p));
+                pieceCoords.put(successor, pieceCoords.remove(p));
+                continue;
+            }
             fadeOutAndRemove(pieceNodes.remove(p));
             pieceCoords.remove(p);
         }
@@ -348,6 +355,7 @@ public class ChessBoardUI extends Pane {
                     fade.setCycleCount(Animation.INDEFINITE);
                     fade.setAutoReverse(true);
                     fade.play();
+                    outerRing.getProperties().put(ANIM_KEY, fade);
 
                     cells[r][c].getChildren().add(outerRing);
                     return;
@@ -477,6 +485,7 @@ public class ChessBoardUI extends Pane {
         ft.setCycleCount(Animation.INDEFINITE);
         ft.setAutoReverse(true);
         ft.play();
+        overlay.getProperties().put(ANIM_KEY, ft);
 
         // bg'den sonra, taştan önce
         cell.getChildren().add(1, overlay);
@@ -500,6 +509,7 @@ public class ChessBoardUI extends Pane {
             ft.setCycleCount(Animation.INDEFINITE);
             ft.setAutoReverse(true);
             ft.play();
+            ring.getProperties().put(ANIM_KEY, ft);
             cell.getChildren().add(ring);
         } else {
             // Nefes alan nokta
@@ -515,6 +525,7 @@ public class ChessBoardUI extends Pane {
             st.setCycleCount(Animation.INDEFINITE);
             st.setAutoReverse(true);
             st.play();
+            dot.getProperties().put(ANIM_KEY, st);
             cell.getChildren().add(dot);
         }
     }
@@ -536,16 +547,35 @@ public class ChessBoardUI extends Pane {
 
     private void clearHighlight() {
         if (selected != null)
-            cells[selected.row()][selected.col()].getChildren()
-                .removeIf(n -> "sel-overlay".equals(n.getId()));
+            removeById(cells[selected.row()][selected.col()], "sel-overlay");
         for (Coordinate mv : legalMoves)
-            cells[mv.row()][mv.col()].getChildren()
-                .removeIf(n -> "hint".equals(n.getId()));
+            removeById(cells[mv.row()][mv.col()], "hint");
         selected   = null;
         legalMoves = new ArrayList<>();
     }
 
     // ── Yardımcılar ─────────────────────────────────────────────────────────
+
+    private static final String ANIM_KEY = "loop-anim";
+
+    /**
+     * Verilen id'lere sahip katmanları kaldırır ve üzerlerindeki sonsuz animasyonu
+     * durdurur — durdurulmayan INDEFINITE animasyonlar düğümü bellekte tutar ve
+     * uzun bir oyunda yüzlercesi birikip arayüzü yavaşlatırdı.
+     */
+    private static void removeById(StackPane cell, String... ids) {
+        cell.getChildren().removeIf(n -> {
+            if (n.getId() == null) return false;
+            for (String id : ids) {
+                if (id.equals(n.getId())) {
+                    Object anim = n.getProperties().get(ANIM_KEY);
+                    if (anim instanceof Animation a) a.stop();
+                    return true;
+                }
+            }
+            return false;
+        });
+    }
 
     private void setBg(StackPane cell, Color color) {
         cell.getChildren().stream()

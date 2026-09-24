@@ -54,7 +54,7 @@ public class GameScreen {
 
         Button menuBtn = smallBtn(I18n.t("game.back_to_menu"), "#8b949e");
         menuBtn.setOnAction(e -> {
-            if (controller.getTimer() != null) controller.getTimer().stop();
+            controller.dispose(); // bekleyen AI hamlesi / saat / ağ olayı menüde "oyun bitti" açmasın
             if (nm != null) nm.disconnect();
             onBackToMenu.run();
         });
@@ -146,6 +146,8 @@ public class GameScreen {
         // Siyah zamanlayıcı
         Label blackTimeLabel = timerLabel(I18n.t("game.black_label"), config.hasTimer() ? "--:--" : "∞");
         VBox blackBox = timerBox(blackTimeLabel, "#1c1c2e", "#444466");
+        // Siyahın aldığı (beyaz) taşlar
+        HBox blackCaptures = capturedRow();
 
         // Hamle listesi
         ListView<String> moveList = buildMoveList();
@@ -157,6 +159,8 @@ public class GameScreen {
         // Beyaz zamanlayıcı
         Label whiteTimeLabel = timerLabel(I18n.t("game.white_label"), config.hasTimer() ? "--:--" : "∞");
         VBox whiteBox = timerBox(whiteTimeLabel, "#1e2a1e", "#336633");
+        // Beyazın aldığı (siyah) taşlar
+        HBox whiteCaptures = capturedRow();
 
         // Durum çubuğu
         Circle turnDot  = new Circle(6);
@@ -176,9 +180,11 @@ public class GameScreen {
 
         VBox rightPanel;
         if (chatSection != null) {
-            rightPanel = new VBox(0, themeRow, actionsRow, blackBox, moveSection, chatSection, whiteBox, statusRow);
+            rightPanel = new VBox(0, themeRow, actionsRow, blackBox, blackCaptures, moveSection, chatSection,
+                    whiteCaptures, whiteBox, statusRow);
         } else {
-            rightPanel = new VBox(0, themeRow, actionsRow, blackBox, moveSection, whiteBox, statusRow);
+            rightPanel = new VBox(0, themeRow, actionsRow, blackBox, blackCaptures, moveSection,
+                    whiteCaptures, whiteBox, statusRow);
         }
         rightPanel.setStyle("-fx-background-color:#0d1117;-fx-border-color:#21262d;-fx-border-width:0 0 0 1;");
         rightPanel.setPrefWidth(290);
@@ -226,6 +232,12 @@ public class GameScreen {
                 setTimerText(blackTimeLabel, "∞", false, false);
             }
             updateMoveList(moveList, controller.getMoveLog());
+
+            List<String> whiteLost = controller.getCapturedTypes("WHITE");
+            List<String> blackLost = controller.getCapturedTypes("BLACK");
+            int diff = materialValue(blackLost) - materialValue(whiteLost); // >0: beyaz önde
+            updateCapturedRow(blackCaptures, whiteLost, true,  -diff);
+            updateCapturedRow(whiteCaptures, blackLost, false,  diff);
 
             boolean over = controller.isGameOver();
             resignBtn.setDisable(over);
@@ -395,6 +407,73 @@ public class GameScreen {
             view.getItems().add(String.format("  %2d.  %-8s  %s", (i / 2) + 1, w, b));
         }
         if (!view.getItems().isEmpty()) view.scrollTo(view.getItems().size() - 1);
+    }
+
+    // ── Yenen taşlar ────────────────────────────────────────────────────────
+
+    private static final List<String> CAPTURE_ORDER = List.of("Queen", "Rook", "Bishop", "Knight", "Pawn");
+
+    private static HBox capturedRow() {
+        HBox row = new HBox(0);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.setPadding(new Insets(2, 10, 2, 10));
+        row.setMinHeight(30);
+        row.setPrefHeight(30);
+        row.setStyle("-fx-background-color:#0d1117;");
+        return row;
+    }
+
+    /** lostTypes: yenmiş taş türleri; whitePieces: bu taşların rengi; advantage: bu satırın sahibinin malzeme üstünlüğü. */
+    private static void updateCapturedRow(HBox row, List<String> lostTypes, boolean whitePieces, int advantage) {
+        row.getChildren().clear();
+        for (String type : CAPTURE_ORDER) {
+            for (String t : lostTypes) {
+                if (!t.equals(type)) continue;
+                Text glyph = new Text(capturedSymbol(type));
+                glyph.setFont(Font.font("Segoe UI Symbol", 20));
+                if (whitePieces) {
+                    glyph.setFill(Color.web("#f0f0f0"));
+                    glyph.setStroke(Color.web("#30363d"));
+                } else {
+                    glyph.setFill(Color.web("#1a1a1a"));
+                    glyph.setStroke(Color.web("#8b949e"));
+                }
+                glyph.setStrokeWidth(0.8);
+                row.getChildren().add(glyph);
+            }
+        }
+        if (advantage > 0) {
+            Label adv = new Label("  +" + advantage);
+            adv.setFont(Font.font("Segoe UI", FontWeight.BOLD, 12));
+            adv.setTextFill(Color.web("#8b949e"));
+            row.getChildren().add(adv);
+        }
+    }
+
+    private static String capturedSymbol(String type) {
+        // Dolu gliflerin rengi fill ile verilir; boş (♙ vb.) glifler koyu zeminde kaybolur.
+        switch (type) {
+            case "Queen":  return "♛";
+            case "Rook":   return "♜";
+            case "Bishop": return "♝";
+            case "Knight": return "♞";
+            default:       return "♟";
+        }
+    }
+
+    private static int materialValue(List<String> types) {
+        int sum = 0;
+        for (String t : types) {
+            switch (t) {
+                case "Queen":  sum += 9; break;
+                case "Rook":   sum += 5; break;
+                case "Bishop":
+                case "Knight": sum += 3; break;
+                case "Pawn":   sum += 1; break;
+                default: break;
+            }
+        }
+        return sum;
     }
 
     private static Label timerLabel(String side, String time) {

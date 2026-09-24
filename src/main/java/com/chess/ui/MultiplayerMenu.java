@@ -111,11 +111,13 @@ public class MultiplayerMenu {
         hostBtn.setOnAction(e -> {
             if (pending[0] != null) return; // already waiting
             NetworkManager nm = buildNM(nameField.getText());
+            long[] tc = TIMERS[timerIdx[0]];
+            nm.setTimeControl(tc[0], tc[1]);
             pending[0] = nm;
 
             nm.setOnConnected(() -> {
                 pending[0] = null;
-                GameConfig cfg = makeConfig("NETWORK_HOST", timerIdx[0]);
+                GameConfig cfg = new GameConfig("NETWORK_HOST", nm.getTimeInitialMs(), nm.getTimeIncrementMs());
                 onGame.accept(cfg, nm);
             });
             nm.startAsHost(() -> Platform.runLater(() -> {
@@ -144,12 +146,16 @@ public class MultiplayerMenu {
 
         Button joinBtn = bigBtn(I18n.t("online.connect"), "#1a1a3a", "#6e76e5");
         joinBtn.setOnAction(e -> {
+            joinBtn.setDisable(true); // bağlanırken çift tıklama iki bağlantı açmasın
             connectStatus.setText(I18n.t("online.connecting"));
             connectStatus.setTextFill(Color.web("#f0883e"));
             String addr = ipField.getText().trim();
             NetworkManager nm = buildNM(nameField.getText());
             nm.setOnConnected(() -> {
-                GameConfig cfg = makeConfig("NETWORK_CLIENT", timerIdx[0]);
+                // Süreyi host belirler; eski sürüm bir host süre yollamadıysa kendi seçimimize düşeriz.
+                GameConfig cfg = nm.getTimeInitialMs() > 0
+                        ? new GameConfig("NETWORK_CLIENT", nm.getTimeInitialMs(), nm.getTimeIncrementMs())
+                        : makeConfig("NETWORK_CLIENT", timerIdx[0]);
                 onGame.accept(cfg, nm);
             });
             new Thread(() -> {
@@ -157,6 +163,7 @@ public class MultiplayerMenu {
                     nm.connectToHost(addr);
                 } catch (IOException ex) {
                     Platform.runLater(() -> {
+                        joinBtn.setDisable(false);
                         connectStatus.setText(I18n.t("online.connect_failed") + ex.getMessage());
                         connectStatus.setTextFill(Color.web("#f85149"));
                     });

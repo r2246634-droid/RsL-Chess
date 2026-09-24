@@ -1,6 +1,7 @@
 package com.chess.game;
 
 import com.chess.core.Board;
+import com.chess.core.ChessRules;
 import com.chess.core.Coordinate;
 import com.chess.pieces.Piece;
 
@@ -60,7 +61,8 @@ public final class SanNotation {
                 if (p == null || !p.getType().equals(movingPiece.getType())
                         || !p.getColor().equals(movingPiece.getColor())) continue;
                 for (Coordinate m : p.calculateMoves(board)) {
-                    if (m.equals(to)) { others.add(pos); break; }
+                    // Açmaz (pin) nedeniyle aslında gidemeyen taş belirsizlik yaratmaz.
+                    if (m.equals(to) && !leavesKingInCheck(board, pos, to)) { others.add(pos); break; }
                 }
             }
         }
@@ -71,6 +73,14 @@ public final class SanNotation {
         if (!sameFile) return String.valueOf((char) ('a' + from.col()));
         if (!sameRank) return String.valueOf(8 - from.row());
         return String.valueOf((char) ('a' + from.col())) + (8 - from.row());
+    }
+
+    private static boolean leavesKingInCheck(Board board, Coordinate from, Coordinate to) {
+        Board test = board.copy();
+        Piece moving = test.getPiece(from);
+        test.setPiece(from, null);
+        test.setPiece(to, moving);
+        return ChessRules.isInCheck(test, moving.getColor());
     }
 
     private static char pieceLetter(String type) {
