@@ -1,13 +1,25 @@
 @echo off
 setlocal
-set MP=C:\Users\Ruslan\Desktop\javafx-sdk-26.0.1\lib
+rem JavaFX SDK konumu: JAVAFX_HOME ortam degiskeni varsa o kullanilir.
+if defined JAVAFX_HOME (
+    set "MP=%JAVAFX_HOME%\lib"
+) else (
+    set "MP=C:\Users\Ruslan\Desktop\javafx-sdk-26.0.1\lib"
+)
+if not exist "%MP%" (
+    echo JavaFX SDK bulunamadi: %MP%
+    echo JAVAFX_HOME ortam degiskenini JavaFX SDK klasorune ayarlayin. Ornek:
+    echo     setx JAVAFX_HOME "C:\javafx-sdk-26.0.1"
+    pause
+    exit /b 1
+)
 set JAVA_OPTS=--module-path "%MP%" --add-modules javafx.controls,javafx.graphics
 set JAR=RsLChess.jar
 set BUNDLE=bundle_temp
 set OUT=dist
 
 echo [1/4] Derleniyor...
-javac %JAVA_OPTS% -d bin ^
+javac %JAVA_OPTS% -encoding UTF-8 -d bin ^
   src\main\java\com\chess\core\*.java ^
   src\main\java\com\chess\pieces\*.java ^
   src\main\java\com\chess\game\*.java ^

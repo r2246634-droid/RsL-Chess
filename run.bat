@@ -1,8 +1,20 @@
 @echo off
-set MODULE_PATH=C:\Users\Ruslan\Desktop\javafx-sdk-26.0.1\lib
+rem JavaFX SDK konumu: JAVAFX_HOME ortam degiskeni varsa o kullanilir.
+if defined JAVAFX_HOME (
+    set "MODULE_PATH=%JAVAFX_HOME%\lib"
+) else (
+    set "MODULE_PATH=C:\Users\Ruslan\Desktop\javafx-sdk-26.0.1\lib"
+)
+if not exist "%MODULE_PATH%" (
+    echo JavaFX SDK bulunamadi: %MODULE_PATH%
+    echo JAVAFX_HOME ortam degiskenini JavaFX SDK klasorune ayarlayin. Ornek:
+    echo     setx JAVAFX_HOME "C:\javafx-sdk-26.0.1"
+    pause
+    exit /b 1
+)
 set JAVA_OPTS=--module-path "%MODULE_PATH%" --add-modules javafx.controls,javafx.graphics
 
-javac %JAVA_OPTS% -d bin ^
+javac %JAVA_OPTS% -encoding UTF-8 -d bin ^
   src\main\java\com\chess\core\*.java ^
   src\main\java\com\chess\pieces\*.java ^
   src\main\java\com\chess\game\*.java ^

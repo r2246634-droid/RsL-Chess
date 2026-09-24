@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build & Run
 
-No Maven/Gradle — build is done with direct `javac`/`java` commands. JavaFX SDK path is hardcoded to `C:\Users\Ruslan\Desktop\javafx-sdk-26.0.1\lib`.
+No Maven/Gradle — build is done with direct `javac`/`java` commands. `run.bat`/`package.bat` read the JavaFX SDK from the `JAVAFX_HOME` environment variable (its `lib` folder), falling back to `C:\Users\Ruslan\Desktop\javafx-sdk-26.0.1\lib` when it isn't set.
 
 **Compile and run (primary script):**
 ```bat
@@ -83,7 +83,7 @@ Main.start()
 
 **Castling rights** are tracked via `Piece.isMoved()` (set by `ChessRules.finalizeMove()` after every executed move, and propagated through `Piece.copy()`), not via separate boolean flags — a king or rook that has never moved (and whose corresponding corner still holds an un-moved rook/king) is eligible.
 
-**En passant** is transient, session-only state kept on `GameController.enPassantTarget` (the square a pawn jumped over on the immediately preceding move, or `null`). It is **not** tracked through the AI's search tree (`ChessAI` always passes `null` for it) — an accepted simplification, since it rarely matters at shallow search depths.
+**En passant** is transient, session-only state kept on `GameController.enPassantTarget` (the square a pawn jumped over on the immediately preceding move, or `null`). `GameController` passes it to `ChessAI.chooseMove(board, color, enPassantTarget)` for the **root** moves only (otherwise a position whose only escape from check is en passant would leave the AI with no move and freeze the game); it is **not** tracked deeper in the search tree (`negamax` passes `null`) — an accepted simplification, since it rarely matters at shallow search depths.
 
 **50-move rule:** `GameController.halfmoveClock` counts half-moves since the last pawn move or capture (castling doesn't reset it, matching the real rule); it resets to 0 on either, increments otherwise, and hitting 100 (50 full moves) ends the game as a draw. Checkmate/stalemate are still checked first each turn, since either takes priority over this counter.
 
@@ -97,13 +97,17 @@ Main.start()
 
 **Undo:** `GameController.undo()` pops a `Snapshot` (a `board.copy()` plus turn/en-passant/halfmove-clock/moveLog/positionCounts, pushed just before every `executeMove` mutates state) and restores everything at once — simpler and less error-prone than trying to incrementally reverse each piece of bookkeeping. `undoLastMove()` calls `undo()` twice when playing against the AI (once for its reply, once for the human's move), so the human always lands back on their own turn. Undo is disabled once the game is over, and the UI (`GameScreen`) also disables it for network games and timed games — the `Snapshot` doesn't capture clock state, so undoing under a running clock would desync the displayed time from what the rule should be.
 
+**Captured pieces:** `GameController.capturedPieces` records every captured `Piece` (including en passant) in `executeMove` and is part of the `Snapshot`, so undo restores it. `GameScreen` shows each side's captures (sorted Q/R/B/N/P, plus a `+N` material lead) in a row next to that side's timer box, refreshed from the same `updateStatus` callback as the move list — so it works identically in every mode.
+
+**Move validation & disposal:** `executeMove` rejects any move whose piece isn't the side to move or whose target isn't in `getLegalMoves(from)` — this guards against stale UI selections (e.g. after undo) and malformed network messages. `GameController.dispose()` (called by `GameScreen`'s back-to-menu button) stops the timer and makes any late AI result / timer timeout / network event a no-op, so nothing can pop a game-over dialog after the player has left the screen. `NetworkManager.disconnect()` likewise sets a `closing` flag so a locally-initiated close is not reported as the opponent disconnecting.
+
+**Network time control:** the host's `HELLO` carries its time control (`HELLO|name|WHITE|initialMs|incrementMs`); the client uses those values instead of its own menu selection so both clocks match.
+
 **Resign / draw offers over network:** `GameController.resign(color)` and `.agreeDraw()` only touch local state; sending the corresponding `NetworkManager` message (`RESIGN`, `DRAW_OFFER`, `DRAW_RESPONSE`) is the caller's job (`GameScreen`, the same split already used for chat). This keeps `GameController` free of any network-message-shaped decisions — it just needs telling "the game ended this way."
 
 **Promotion choice:** `ChessBoardUI.doMove()` detects a promoting pawn *before* calling `executeMove`, shows `PromotionDialog` (blocking, `Stage.showAndWait()`) for **local human moves only**, and passes the chosen type through `executeMove(from, to, promotionType)`. AI and remote-network moves default to `null` → Queen inside `GameController` unless the network message carries an explicit choice. The `MOVE` network message therefore carries a 5th field (`""` or `"Queen"/"Rook"/"Bishop"/"Knight"`) so both sides apply the same promoted piece.
 
 **SAN notation:** `SanNotation.toSan()` builds everything except the trailing `+`/`#` (piece letter, disambiguation, capture `x`, destination, `=Q` for promotion, `O-O`/`O-O-O` for castling) from the board *before* the move mutates it; `GameController` appends the check/mate suffix afterward once the post-move state is known, and that's what both the live move-list panel and the saved `game_history/*.txt` file display — there's no separate "coordinate pair" format anymore, `GameController.moveLog` (SAN strings) is the single source of truth for both.
-
-**AI prefers the fastest mate:** `ChessAI.negamax()`'s terminal "no legal moves" case returns `-(MATE_SCORE + depth)` (not a flat sentinel) when the side to move is checkmated, where `depth` is the *remaining* search budget at that node — so a mate found with more depth still unused (i.e. fewer plies from wherever that branch started) scores as more punishing for the mated side. Propagated back through negamax's alternating negation, this makes the search prefer delivering mate in fewer moves over a slower one, and — for free, from the same formula — prefer delaying its own mate as long as possible when it's the one losing. `MATE_SCORE` (1,000,000) is far above any realistic material evaluation so it always dominates. Note the `depth == 0` case still short-circuits straight to `evaluate()` *before* checking for legal moves, so a mate landing exactly on the search horizon isn't recognized as mate there — a standard fixed-depth-search limitation, not something this change addresses.
 
 **`Piece.copy(Coordinate pos)`** — all pieces implement this abstract method, and must copy the `moved` flag too. Used by `Board.copy()` to create deep copies for AI tree search / legal-move simulation without mutating the live board.
 
